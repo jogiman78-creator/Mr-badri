@@ -1,75 +1,103 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mr Badri Rewards</title>
 <style>
-body{font-family:Arial,sans-serif;background:#101827;color:white;text-align:center;padding:15px}
+body{font-family:Arial;background:#101827;color:white;text-align:center;padding:15px}
 .card{max-width:400px;margin:20px auto;background:#1f2937;padding:20px;border-radius:14px}
 input,button{width:100%;box-sizing:border-box;padding:13px;margin:8px 0;border-radius:8px;border:0}
 input{background:white;color:#111}
 button{background:#16a34a;color:white;font-weight:bold}
 button:disabled{background:#777}
-a{color:#60a5fa}
 #message{overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <div class="card">
 <h1>Welcome to Mr Badri</h1>
-<p>Refer and earn rewards</p><a href="https://www.7a0f8mi.com/#/?invitationCode=2992000774" target="_blank" rel="noopener">
-<button type="button">Open Referral Link</button>
-</a><form id="rewardForm">
+<p>Refer and earn rewards</p>
+
+<button type="button" onclick="window.open('https://www.7a0f8mi.com/#/?invitationCode=2992000774','_blank')">Open Referral Link</button>
+
 <label>UPI ID</label>
-<input name="upi" placeholder="Enter your UPI ID" required>
+<input id="upi" placeholder="Enter your UPI ID">
+
 <button type="button" id="submitUpiBtn">Submit UPI</button>
+
+<form id="rewardForm">
 <label>Game UID</label>
 <input name="uid" placeholder="Enter your UID" required>
 
 <label>Upload screenshot</label>
 <input type="file" name="screenshot" accept="image/png,image/jpeg,image/webp" required>
 
-<label>
-<input type="checkbox" required style="width:auto">
-My UID matches the screenshot
-</label><button id="submitBtn" type="submit">Submit UID and Screenshot</button>
+<label><input type="checkbox" required style="width:auto"> My UID matches the screenshot</label>
 
-<p id="message" role="status"></p>
+<button id="submitBtn" type="submit">Submit UID and Screenshot</button>
 </form>
-</div><script>
-const form=document.getElementById('rewardForm');
-const btn=document.getElementById('submitBtn');
-const msg=document.getElementById('message');
-let sending=false;
+<p id="message" role="status"></p>
+</div>
 
-form.addEventListener('submit',async function(e){
- e.preventDefault();
- if(sending)return;
+<script>
+const upiInput = document.getElementById('upi');
+const upiBtn = document.getElementById('submitUpiBtn');
+const form = document.getElementById('rewardForm');
+const submitBtn = document.getElementById('submitBtn');
+const msg = document.getElementById('message');
 
- sending=true;
- btn.disabled=true;
- btn.textContent='Submitting...';
- msg.textContent='Please wait...';
+upiBtn.addEventListener('click', async () => {
+    const upi = upiInput.value.trim();
+    if (!upi) {
+        msg.textContent = 'Pehle UPI ID bharo.';
+        return;
+    }
 
- try{
-  const response=await fetch('/submit',{method:'POST',body:new FormData(form)});
-  const result=await response.json();
-  msg.textContent=result.message || 'Request finished.';
+    upiBtn.disabled = true;
+    msg.textContent = 'UPI bheji ja rahi hai...';
 
-  if(response.ok && result.success){
-   form.reset();
-   btn.textContent='Already Submitted';
-  }else{
-   sending=false;
-   btn.disabled=false;
-   btn.textContent='Submit UID and Screenshot';
-  }
- }catch(error){
-  msg.textContent='Connection error. Please try again.';
-  sending=false;
-  btn.disabled=false;
-  btn.textContent='Submit UID and Screenshot';
- }
+    try {
+        const data = new FormData();
+        data.append('upi', upi);
+
+        const response = await fetch('/submit-upi', {
+            method: 'POST',
+            body: data
+        });
+        const result = await response.json();
+        msg.textContent = result.message || 'Request complete.';
+
+        if (!response.ok || !result.success) {
+            upiBtn.disabled = false;
+        }
+    } catch (error) {
+        msg.textContent = 'Connection error. Dobara try karo.';
+        upiBtn.disabled = false;
+    }
 });
-</script></body>
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    msg.textContent = 'Submitting...';
+
+    const data = new FormData(form);
+    data.append('upi', upiInput.value.trim());
+
+    try {
+        const response = await fetch('/submit', {method:'POST', body:data});
+        const result = await response.json();
+        msg.textContent = result.message || 'Request complete.';
+
+        if (!response.ok || !result.success) {
+            submitBtn.disabled = false;
+        }
+    } catch (error) {
+        msg.textContent = 'Connection error. Dobara try karo.';
+        submitBtn.disabled = false;
+    }
+});
+</script>
+</body>
 </html>
