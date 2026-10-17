@@ -11,9 +11,10 @@ ADMIN_ID = os.environ.get("TELEGRAM_ADMIN_ID", "8989608134")
 DB = "submissions.db"
 
 def init_db():
-with sqlite3.connect(DB) as con:
-con.execute("CREATE TABLE IF NOT EXISTS submissions (upi TEXT PRIMARY KEY)")
-con.execute("CREATE TABLE IF NOT EXISTS upi_submissions (upi TEXT PRIMARY KEY)")
+    with sqlite3.connect(DB) as con:
+        con.execute("CREATE TABLE IF NOT EXISTS submissions (upi TEXT PRIMARY KEY)")
+        con.execute("CREATE TABLE IF NOT EXISTS upi_submissions (upi TEXT PRIMARY KEY)")
+
 
 init_db()
 
