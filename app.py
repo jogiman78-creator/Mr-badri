@@ -20,7 +20,7 @@ init_db()
 
 @app.route("/")
 def home():
-return send_from_directory(".", "index.html")
+    return send_from_directory(".", "index.html")
 
 @app.route("/submit-upi", methods=["POST"])
 def submit_upi():
