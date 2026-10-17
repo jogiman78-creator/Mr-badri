@@ -165,6 +165,19 @@ document.getElementById("uidForm").onsubmit = async function(e) {
   }
 };
 </script>
-
+<script>
+document.querySelectorAll('button').forEach(function(btn) {
+  if (btn.type === 'submit') {
+    btn.form?.addEventListener('submit', function() {
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+    });
+  } else {
+    btn.addEventListener('click', function() {
+      btn.disabled = true;
+    });
+  }
+});
+</script>
 </body>
 </html>
