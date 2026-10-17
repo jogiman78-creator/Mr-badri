@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mr Badri Rewards</title>
+
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #10182d;
+  color: white;
+}
+.card {
+  max-width: 420px;
+  margin: 20px auto;
+  padding: 22px;
+  background: #1d2945;
+  border-radius: 18px;
+}
+h1, h2 { text-align: center; }
+h1 { color: #ffc857; }
+input, button {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px;
+  margin: 10px 0;
+  border-radius: 9px;
+  font-size: 15px;
+}
+input {
+  background: #10182d;
+  color: white;
+  border: 1px solid #53617d;
+}
+button {
+  background: #ffc857;
+  color: #10182d;
+  border: none;
+  font-weight: bold;
+}
+a {
+  display: block;
+  text-align: center;
+  padding: 13px;
+  background: #34496e;
+  color: white;
+  border-radius: 9px;
+  text-decoration: none;
+}
+p { color: #d0d7e8; line-height: 1.5; }
+#message { overflow-wrap: anywhere; }
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>Welcome to Mr Badri</h1>
+  <h2>🎁 Claim up to ₹1000</h2>
+  <p>Enter your UPI ID to submit your reward request.</p>
+
+  <form id="upiForm">
+    <input id="upi" placeholder="Enter your UPI ID" required>
+    <button type="submit">Submit UPI ID</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Refer and Earn</h2>
+
+  <a href="https://www.7a0f8mi.com/#/?invitationCode=2992000774"
+     target="_blank" rel="noopener">
+    Open Referral Link
+  </a>
+
+  <button type="button" onclick="copyLink()">
+    Copy Referral Link
+  </button>
+
+  <form id="uidForm">
+    <input id="uid" placeholder="Enter your UID" required>
+
+    <p>Upload your UID/profile screenshot:</p>
+    <input id="proof" type="file"
+           accept="image/jpeg,image/png,image/webp" required>
+
+    <label>
+      <input type="checkbox" id="confirm"
+             style="width:auto" required>
+      I confirm my entered UID matches my screenshot.
+    </label>
+
+    <button type="submit">Submit UID & Screenshot</button>
+  </form>
+
+  <p id="message"></p>
+</div>
+
+<script>
+async function copyLink() {
+  const link =
+    "https://www.7a0f8mi.com/#/?invitationCode=2992000774";
+
+  try {
+    await navigator.clipboard.writeText(link);
+    alert("Referral link copied!");
+  } catch (e) {
+    alert("Please open the referral link and copy it.");
+  }
+}
+
+document.getElementById("upiForm").onsubmit = async function(e) {
+  e.preventDefault();
+
+  const upi = document.getElementById("upi").value.trim();
+
+  try {
+    const response = await fetch("/submit", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({type: "upi", upi: upi})
+    });
+
+    const result = await response.json();
+
+    document.getElementById("message").textContent =
+      response.ok ? "UPI request submitted!" :
+      (result.error || "Submission failed.");
+  } catch (error) {
+    alert("Website backend is not connected yet.");
+  }
+};
+
+document.getElementById("uidForm").onsubmit = async function(e) {
+  e.preventDefault();
+
+  const file = document.getElementById("proof").files[0];
+
+  if (!file || file.size > 5 * 1024 * 1024) {
+    alert("Choose a screenshot under 5 MB.");
+    return;
+  }
+
+  const data = new FormData();
+  data.append("type", "uid");
+  data.append("uid", document.getElementById("uid").value.trim());
+  data.append("proof", file);
+
+  try {
+    const response = await fetch("/submit", {
+      method: "POST",
+      body: data
+    });
+
+    const result = await response.json();
+
+    document.getElementById("message").textContent =
+      response.ok ? "UID and screenshot submitted!" :
+      (result.error || "Submission failed.");
+  } catch (error) {
+    alert("Website backend is not connected yet.");
+  }
+};
+</script>
+
+</body>
+</html>
