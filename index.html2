@@ -4,58 +4,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mr Badri Rewards</title>
 <style>
-body{font-family:Arial;background:#101827;color:white;text-align:center;padding:20px}
+body{font-family:Arial,sans-serif;background:#101827;color:white;text-align:center;padding:15px}
 .card{max-width:400px;margin:20px auto;background:#1f2937;padding:20px;border-radius:14px}
 input,button{width:100%;box-sizing:border-box;padding:13px;margin:8px 0;border-radius:8px;border:0}
+input{background:white;color:#111}
 button{background:#16a34a;color:white;font-weight:bold}
 button:disabled{background:#777}
 a{color:#60a5fa}
+#message{overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <div class="card">
 <h1>Welcome to Mr Badri</h1>
-<p>Refer and earn rewards</p>
-<p><a href="https://www.7a0f8mi.com/#/?invitationCode=2992000774">Open referral link</a></p>
-<form id="rewardForm">
+<p>Refer and earn rewards</p><a href="https://www.7a0f8mi.com/#/?invitationCode=2992000774" target="_blank" rel="noopener">
+<button type="button">Open Referral Link</button>
+</a><form id="rewardForm">
 <label>UPI ID</label>
-<input name="upi" id="upi" placeholder="Enter UPI ID" required>
-<label>Game UID</label>
-<input name="uid" placeholder="Enter UID" required>
+<input name="upi" placeholder="Enter your UPI ID" required><label>Game UID</label>
+<input name="uid" placeholder="Enter your UID" required>
+
 <label>Upload screenshot</label>
 <input type="file" name="screenshot" accept="image/png,image/jpeg,image/webp" required>
-<label><input type="checkbox" required style="width:auto"> My UID matches the screenshot</label>
-<button id="submitBtn" type="submit">Submit UID and Screenshot</button>
-<p id="message"></p>
+
+<label>
+<input type="checkbox" required style="width:auto">
+My UID matches the screenshot
+</label><button id="submitBtn" type="submit">Submit UID and Screenshot</button>
+
+<p id="message" role="status"></p>
 </form>
-</div>
-<script>
+</div><script>
 const form=document.getElementById('rewardForm');
 const btn=document.getElementById('submitBtn');
 const msg=document.getElementById('message');
-form.addEventListener('submit',async e=>{
+let sending=false;
+
+form.addEventListener('submit',async function(e){
  e.preventDefault();
- if(btn.disabled)return;
+ if(sending)return;
+
+ sending=true;
  btn.disabled=true;
  btn.textContent='Submitting...';
- msg.textContent='';
+ msg.textContent='Please wait...';
+
  try{
-  const r=await fetch('/submit',{method:'POST',body:new FormData(form)});
-  const data=await r.json();
-  msg.textContent=data.message||'Request complete';
-  if(r.ok&&data.success){
+  const response=await fetch('/submit',{method:'POST',body:new FormData(form)});
+  const result=await response.json();
+  msg.textContent=result.message || 'Request finished.';
+
+  if(response.ok && result.success){
    form.reset();
-   btn.textContent='Submitted';
+   btn.textContent='Already Submitted';
   }else{
+   sending=false;
    btn.disabled=false;
    btn.textContent='Submit UID and Screenshot';
   }
- }catch(err){
-  msg.textContent='Network error. Please try again.';
+ }catch(error){
+  msg.textContent='Connection error. Please try again.';
+  sending=false;
   btn.disabled=false;
   btn.textContent='Submit UID and Screenshot';
  }
 });
-</script>
-</body>
+</script></body>
 </html>
