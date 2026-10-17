@@ -1,80 +1,160 @@
 import os
-import re
+import sqlite3
 import requests
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_file
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-ADMIN = os.environ.get("TELEGRAM_ADMIN_ID", "8989608134")
+ADMIN_ID = os.environ.get("TELEGRAM_ADMIN_ID", "8989608134")
+DB_FILE = os.environ.get("DB_PATH", "submissions.db")
+
+
+def init_db():
+    with sqlite3.connect(DB_FILE) as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS submissions (
+                upi TEXT PRIMARY KEY,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+
+init_db()
+
 
 @app.route("/")
 def home():
-    return send_from_directory(".", "index.html")
+    if os.path.exists("index.html"):
+        return send_file("index.html")
+    return "Mr Badri website is running."
+
 
 @app.route("/submit", methods=["POST"])
 def submit():
-    if not TOKEN:
-        return jsonify(error="Bot not configured"), 503
+    upi = (
+        request.form.get("upi")
+        or request.form.get("upi_id")
+        or request.form.get("upiId")
+        or ""
+    ).strip().lower()
 
-    if request.is_json:
-        data = request.get_json(silent=True) or {}
-        upi = str(data.get("upi", "")).strip()
+    uid = (
+        request.form.get("uid")
+        or request.form.get("game_uid")
+        or ""
+    ).strip()
 
-        if data.get("type") != "upi":
-            return jsonify(error="Invalid request"), 400
+    screenshot = (
+        request.files.get("screenshot")
+        or request.files.get("file")
+    )
 
-        if not re.fullmatch(r"[A-Za-z0-9._-]+@[A-Za-z0-9.-]+", upi):
-            return jsonify(error="Invalid UPI ID"), 400
+    if not upi or not uid or not screenshot:
+        return jsonify({
+            "success": False,
+            "message": "UPI ID, UID aur screenshot zaroori hain."
+        }), 400
 
-        text = "Mr Badri Rewards\nUPI ID: " + upi
-        method = "sendMessage"
-        payload = {"chat_id": ADMIN, "text": text}
+    if "@" not in upi or len(upi) > 100:
+        return jsonify({
+            "success": False,
+            "message": "Valid UPI ID enter karo."
+        }), 400
 
-    else:
-        uid = str(request.form.get("uid", "")).strip()
-        photo = request.files.get("proof")
+    if not screenshot.filename:
+        return jsonify({
+            "success": False,
+            "message": "Screenshot select karo."
+        }), 400
 
-        if request.form.get("type") != "uid" or not uid or not photo:
-            return jsonify(error="UID and screenshot required"), 400
+    allowed = {"png", "jpg", "jpeg", "webp"}
+    ext = screenshot.filename.rsplit(".", 1)[-1].lower()
 
-        if photo.mimetype not in ["image/jpeg", "image/png", "image/webp"]:
-            return jsonify(error="Image only"), 400
+    if "." not in screenshot.filename or ext not in allowed:
+        return jsonify({
+            "success": False,
+            "message": "JPG, PNG ya WEBP screenshot upload karo."
+        }), 400
 
-        content = photo.read(5 * 1024 * 1024 + 1)
-        if len(content) > 5 * 1024 * 1024:
-            return jsonify(error="Image too large"), 400
+    image_data = screenshot.read()
 
-        text = "Mr Badri Rewards\nUID: " + uid
-        method = "sendPhoto"
-        payload = {"chat_id": ADMIN, "caption": text}
+    if not image_data or len(image_data) > 5 * 1024 * 1024:
+        return jsonify({
+            "success": False,
+            "message": "Screenshot khali hai ya 5 MB se bada hai."
+        }), 400
 
-        try:
-            r = requests.post(
-                f"https://api.telegram.org/bot{TOKEN}/{method}",
-                data=payload,
-                files={"photo": (photo.filename, content, photo.mimetype)},
-                timeout=20
+    # Ek UPI ID ki sirf ek submission allow hogi.
+    try:
+        with sqlite3.connect(DB_FILE, timeout=10) as con:
+            con.execute(
+                "INSERT INTO submissions (upi) VALUES (?)",
+                (upi,)
             )
-            r.raise_for_status()
-            if not r.json().get("ok"):
-                return jsonify(error="Telegram error"), 502
-            return jsonify(ok=True)
-        except Exception:
-            return jsonify(error="Telegram send failed"), 502
+    except sqlite3.IntegrityError:
+        return jsonify({
+            "success": False,
+            "message": "Ye UPI ID pehle hi submit ho chuki hai."
+        }), 409
+    except sqlite3.Error:
+        return jsonify({
+            "success": False,
+            "message": "Database error. Dobara baad mein try karo."
+        }), 500
+
+    if not TOKEN:
+        with sqlite3.connect(DB_FILE) as con:
+            con.execute("DELETE FROM submissions WHERE upi = ?", (upi,))
+        return jsonify({
+            "success": False,
+            "message": "Server configuration error."
+        }), 500
 
     try:
-        r = requests.post(
-            f"https://api.telegram.org/bot{TOKEN}/{method}",
-            json=payload,
-            timeout=20
+        response = requests.post(
+            f"https://api.telegram.org/bot{TOKEN}/sendPhoto",
+            data={
+                "chat_id": ADMIN_ID,
+                "caption": f"New submission\nUPI: {upi}\nUID: {uid}"
+            },
+            files={
+                "photo": (
+                    secure_filename(screenshot.filename),
+                    image_data,
+                    screenshot.mimetype or "image/jpeg"
+                )
+            },
+            timeout=30
         )
-        r.raise_for_status()
-        if not r.json().get("ok"):
-            return jsonify(error="Telegram error"), 502
-        return jsonify(ok=True)
+        response.raise_for_status()
+
+        if not response.json().get("ok"):
+            raise RuntimeError("Telegram rejected the submission")
+
     except Exception:
-        return jsonify(error="Telegram send failed"), 502
+        with sqlite3.connect(DB_FILE) as con:
+            con.execute("DELETE FROM submissions WHERE upi = ?", (upi,))
+        return jsonify({
+            "success": False,
+            "message": "Submission send nahi hui. Thodi der baad try karo."
+        }), 502
+
+    return jsonify({
+        "success": True,
+        "message": "Submission successfully received."
+    })
+
+
+@app.errorhandler(413)
+def too_large(error):
+    return jsonify({
+        "success": False,
+        "message": "Screenshot 5 MB se chhota hona chahiye."
+    }), 413
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    app.run()
