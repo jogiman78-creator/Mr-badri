@@ -12,9 +12,7 @@ DB = "submissions.db"
 
 def init_db():
 with sqlite3.connect(DB) as con:
-con.execute(
-"CREATE TABLE IF NOT EXISTS submissions (upi TEXT PRIMARY KEY)"
-)
+con.execute("CREATE TABLE IF NOT EXISTS submissions (upi TEXT PRIMARY KEY)")
 
 init_db()
 
@@ -28,7 +26,7 @@ upi = request.form.get("upi", "").strip().lower()
 uid = request.form.get("uid", "").strip()
 screenshot = request.files.get("screenshot")
 
-if not upi or not uid or not screenshot:
+if not upi or not uid or not screenshot or not screenshot.filename:
     return jsonify(success=False, message="UPI, UID aur screenshot bharo."), 400
 
 if not TOKEN:
@@ -43,23 +41,14 @@ except sqlite3.IntegrityError:
 try:
     response = requests.post(
         f"https://api.telegram.org/bot{TOKEN}/sendPhoto",
-        data={
-            "chat_id": ADMIN_ID,
-            "caption": f"New submission\nUPI: {upi}\nUID: {uid}"
-        },
-        files={
-            "photo": (
-                screenshot.filename or "screenshot.jpg",
-                screenshot.stream,
-                screenshot.mimetype or "image/jpeg"
-            )
-        },
+        data={"chat_id": ADMIN_ID, "caption": f"New submission\nUPI: {upi}\nUID: {uid}"},
+        files={"photo": (screenshot.filename, screenshot.stream, screenshot.mimetype or "image/jpeg")},
         timeout=25
     )
     response.raise_for_status()
 
     if not response.json().get("ok"):
-        raise RuntimeError("Telegram rejected the submission")
+        raise RuntimeError("Telegram rejected submission")
 
 except Exception:
     with sqlite3.connect(DB) as con:
